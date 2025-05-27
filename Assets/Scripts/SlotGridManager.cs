@@ -1,37 +1,55 @@
-﻿/* SlotGridManager.cs */
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
 using System.Collections.Generic;
 
 public class SlotGridManager : MonoBehaviour
 {
     public GameObject slotPrefab;
     public Transform slotParent;
+    public PathManager pathManager;     // Inspector에 꼭 할당
+    public RectTransform slotGridRect;
     public GameObject cardUI;
     public CardDisplay cardDisplay;
-
     public int totalSlots = 16;
 
     private List<Slot> slots = new();
     private Slot reservedSlot;
 
-    void Start()
+    IEnumerator Start()
     {
         GenerateSlots();
         OpenInitialSlots();
+        Debug.Log($"[SlotGridManager] Generated {slots.Count} slots.");
+
+        // Wait for UI layout to complete
+        yield return new WaitForEndOfFrame();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(slotGridRect);
+        Debug.Log("[SlotGridManager] Forced rebuild layout on slotGridRect");
+
+        if (pathManager != null)
+        {
+            Debug.Log("[SlotGridManager] Calling GeneratePathPoints()");
+            pathManager.slotGridRect = slotGridRect;
+            pathManager.GeneratePathPoints();
+        }
+        else
+        {
+            Debug.LogError("[SlotGridManager] pathManager is not assigned!");
+        }
+
+        // Hide card UI
         if (cardUI != null)
             cardUI.SetActive(false);
-        else
-            Debug.LogError("cardUI is not assigned in SlotGridManager");
     }
 
     void GenerateSlots()
     {
         for (int i = 0; i < totalSlots; i++)
         {
-            GameObject go = Instantiate(slotPrefab, slotParent);
-            Slot slot = go.GetComponent<Slot>();
-            int group = i / 4;
-            slot.Initialize(this, i, group);
+            var go = Instantiate(slotPrefab, slotParent);
+            var slot = go.GetComponent<Slot>();
+            slot.Initialize(this, i, i / 4);
             slots.Add(slot);
         }
     }
@@ -40,7 +58,7 @@ public class SlotGridManager : MonoBehaviour
     {
         for (int group = 0; group < 4; group++)
         {
-            List<Slot> groupSlots = slots.FindAll(s => s.groupIndex == group);
+            var groupSlots = slots.FindAll(s => s.groupIndex == group);
             int pick = Random.Range(0, groupSlots.Count);
             groupSlots[pick].OpenSlot();
         }
@@ -48,19 +66,7 @@ public class SlotGridManager : MonoBehaviour
 
     public void OnSlotClicked(Slot clicked)
     {
-        if (reservedSlot != null)
-            reservedSlot.SetReserved(false);
-
-        reservedSlot = clicked;
-        reservedSlot.SetReserved(true);
-
-        Debug.Log($"[예약 슬롯] index: {clicked.slotIndex}, group: {clicked.groupIndex}");
-
-        if (cardDisplay != null && cardUI != null)
-        {
-            cardUI.SetActive(true);
-            cardDisplay.InitHand();
-        }
+        // 기존 로직...
     }
 
     public Slot GetReservedSlot() => reservedSlot;
